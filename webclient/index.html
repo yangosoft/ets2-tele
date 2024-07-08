@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+#lbl_speed {
+  font-size: 3em;
+}
+
+#lbl_rpm {
+  font-size: 3em;
+}
+</style>
+
+<title>ETS2 Display</title>
+</head>
+
+<body>
+
+
+<div id="lbl_speed">
+
+</div>
+
+<div id="lbl_rpm">
+
+</div>
+
+</body>
+<script>
+const ws = new WebSocket('ws://localhost:9002')
+ws.onopen = () => {
+  console.log('ws opened on browser')
+  ws.send('hello world')
+}
+
+ws.onmessage = (message) => {
+  console.log(`message received`, message.data)
+
+  let d = JSON.parse(message.data);
+  console.log(d.rpm);
+
+
+  let speed = Math.ceil((d.speedometer_speed * 3600) / 1000);
+
+  let lblrpm = document.getElementById("lbl_rpm");
+  lblrpm.innerHTML = Math.ceil(d.rpm)+" RPM";
+
+  let lblspeed = document.getElementById("lbl_speed");
+  lblspeed.innerHTML = speed +" Km/h";
+}
+</script>
+</html>

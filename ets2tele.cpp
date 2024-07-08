@@ -1,26 +1,56 @@
-// ets2tele.cpp : Este archivo contiene la función "main". La ejecución del programa comienza y termina ahí.
-//
+﻿// WebsocketPP
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/server.hpp>
 
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <set>
 // Windows stuff.
 
-#define WINVER 0x0500
+/*#define WINVER 0x0500
 #define _WIN32_WINNT 0x0500
-#include <windows.h>
+#include <windows.h>*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <stdarg.h>
 
 // SDK
-
 #include "scssdk_telemetry.h"
 #include "eurotrucks2/scssdk_eut2.h"
 #include "eurotrucks2/scssdk_telemetry_eut2.h"
 #include "amtrucks/scssdk_ats.h"
 #include "amtrucks/scssdk_telemetry_ats.h"
+
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
+using websocketpp::connection_hdl;
+using websocketpp::lib::placeholders::_1;
+using websocketpp::lib::placeholders::_2;
+using websocketpp::lib::bind;
+
+using server = websocketpp::server<websocketpp::config::asio>;
+using con_list = std::set<connection_hdl, std::owner_less<connection_hdl>>;
+
+con_list clients;
+std::mutex mtx_clients;
+server print_server;
+
+
+void on_open(connection_hdl hdl) {
+	std::unique_lock<std::mutex> lock(mtx_clients);
+	clients.insert(hdl);
+}
+
+void on_close(connection_hdl hdl) {
+	clients.erase(hdl);
+}
+
+json json_telemetry;
+
+
 
 const size_t MAX_SUPPORTED_WHEEL_COUNT = 8;
 
@@ -62,12 +92,12 @@ struct telemetry_state_t
 /**
  * @brief Handle of the memory mapping.
  */
-HANDLE memory_mapping = NULL;
+HANDLE memory_mapping = nullptr;
 
 /**
  * @brief Block inside the shared memory.
  */
-telemetry_state_t* shared_memory = NULL;
+telemetry_state_t* shared_memory = nullptr;
 
 /**
  * @brief Deinitialize the shared memory objects.
@@ -76,12 +106,12 @@ void deinitialize_shared_memory(void)
 {
 	if (shared_memory) {
 		UnmapViewOfFile(shared_memory);
-		shared_memory = NULL;
+		shared_memory = nullptr;
 	}
 
 	if (memory_mapping) {
 		CloseHandle(memory_mapping);
-		memory_mapping = NULL;
+		memory_mapping = nullptr;
 	}
 }
 
@@ -114,34 +144,64 @@ bool initialize_shared_memory(void)
 		return false;
 	}
 
-	
+
 	return true;
+}
+
+void broadcast_telemetry(telemetry_state_t* shared_memory) {
+	std::unique_lock<std::mutex> lock(mtx_clients);
+
+	json_telemetry["speedometer_speed"] = shared_memory->speedometer_speed;
+	json_telemetry["rpm"] = shared_memory->rpm;
+	json_telemetry["gear"] = shared_memory->gear;
+	json_telemetry["throttle"] = shared_memory->throttle;
+	json_telemetry["brake"] = shared_memory->brake;
+
+	std::string data(json_telemetry.dump());
+	for (auto client : clients) {
+		print_server.send(client, data, websocketpp::frame::opcode::text);
+	}
 }
 
 int main()
 {
-    std::cout << "Hello World!\n";
+	std::cout << "Hello World!\n";
 	auto ret = initialize_shared_memory();
 	if (!ret) {
 		std::cout << "Cannot read from shared memory\n";
 		return -1;
 	}
 
+	json_telemetry["speedometer_speed"] = 0.0f;
+	json_telemetry["rpm"] = 0.0f;
+	json_telemetry["gear"] = 0;
+	json_telemetry["throttle"] = 0.0f;
+	json_telemetry["brake"] = 0.0f;
+
+
+
+	print_server.set_open_handler(&on_open);
+	print_server.set_close_handler(&on_close);
+
+	//print_server.set_message_handler(&on_message);
+	print_server.set_access_channels(websocketpp::log::alevel::all);
+	print_server.set_error_channels(websocketpp::log::elevel::all);
+
+	print_server.init_asio();
+	print_server.listen(9002);
+	print_server.start_accept();
+
+	std::thread 		th_srv([&] { print_server.run();  });
+	
+
 
 	while (true) {
-		std::cout << (shared_memory->speedometer_speed * 3600)/1000 << "km/h\n";
 		
+		std::cout << (shared_memory->speedometer_speed * 3600) / 1000 << " km/h\n";
+		broadcast_telemetry(shared_memory);
 		std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
+		
 	}
+
+	th_srv.join();
 }
-
-// Ejecutar programa: Ctrl + F5 o menú Depurar > Iniciar sin depurar
-// Depurar programa: F5 o menú Depurar > Iniciar depuración
-
-// Sugerencias para primeros pasos: 1. Use la ventana del Explorador de soluciones para agregar y administrar archivos
-//   2. Use la ventana de Team Explorer para conectar con el control de código fuente
-//   3. Use la ventana de salida para ver la salida de compilación y otros mensajes
-//   4. Use la ventana Lista de errores para ver los errores
-//   5. Vaya a Proyecto > Agregar nuevo elemento para crear nuevos archivos de código, o a Proyecto > Agregar elemento existente para agregar archivos de código existentes al proyecto
-//   6. En el futuro, para volver a abrir este proyecto, vaya a Archivo > Abrir > Proyecto y seleccione el archivo .sln
