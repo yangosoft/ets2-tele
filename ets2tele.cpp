@@ -85,6 +85,13 @@ struct telemetry_state_t
 
 	scs_u32_t				wheel_count;				// SCS_TELEMETRY_CONFIG_ATTRIBUTE_wheel_count
 	scs_float_t				wheel_deflections[MAX_SUPPORTED_WHEEL_COUNT]; // SCS_TELEMETRY_TRUCK_CHANNEL_wheel_susp_deflection
+
+	scs_float_t oil_temp;
+	scs_float_t oil_pressure;
+	scs_float_t water_temp;
+	scs_float_t odometer;
+	scs_float_t fuel;
+	scs_float_t fuel_average_consum;
 };
 
 #pragma pack(pop)
@@ -156,6 +163,12 @@ void broadcast_telemetry(telemetry_state_t* shared_memory) {
 	json_telemetry["gear"] = shared_memory->gear;
 	json_telemetry["throttle"] = shared_memory->throttle;
 	json_telemetry["brake"] = shared_memory->brake;
+	json_telemetry["oil_temp"] = shared_memory->oil_temp;
+	json_telemetry["oil_pressure"] = shared_memory->oil_pressure;
+	json_telemetry["water_temp"] = shared_memory->water_temp;
+	json_telemetry["odometer"] = shared_memory->odometer;
+	json_telemetry["fuel"] = shared_memory->fuel;
+	json_telemetry["fuel_average_consum"] = shared_memory->fuel_average_consum;
 
 	std::string data(json_telemetry.dump());
 	for (auto client : clients) {
@@ -177,6 +190,12 @@ int main()
 	json_telemetry["gear"] = 0;
 	json_telemetry["throttle"] = 0.0f;
 	json_telemetry["brake"] = 0.0f;
+	json_telemetry["oil_temp"] = 0.0f;
+	json_telemetry["oil_pressure"] = 0.0f;
+	json_telemetry["water_temp"] = 0.0f;
+	json_telemetry["odometer"] = 0.0f;
+	json_telemetry["fuel"] = 0.0f;
+	json_telemetry["fuel_average_consum"] = 0.0f;
 
 
 
