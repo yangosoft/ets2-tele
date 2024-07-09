@@ -1,52 +1,122 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-<style>
-#lbl_speed {
-  font-size: 3em;
-}
+  <style>
+    #lbl_speed {
+      font-size: 3em;
+    }
 
-#lbl_rpm {
-  font-size: 3em;
-}
-</style>
+    #lbl_rpm {
+      font-size: 3em;
+    }
+  </style>
 
-<title>ETS2 Display</title>
+  <title>ETS2 Display</title>
 </head>
 
+
+
 <body>
+  <script type="module">
+
+    import * as me from 'https://esm.run/melonjs';
+
+    // upon device ready
+    me.device.onReady(function () {
+      // Initialize the video.
+      if (!me.video.init(1218, 562, { parent: "screen", scale: "auto" })) {
+        alert("Your browser does not support HTML5 canvas.");
+        return;
+      }
+
+      me.loader.preload([{
+        name: "speedo",
+        type: "image",
+        src: "speedo2.png",
+      }, {
+        name: "needle",
+        type: "image",
+        src: "needle.png",
+      }],
+        // on load callback
+        function () {
+          me.state.change(me.state.DEFAULT, true);
+          // set a gray background color
+          me.game.world.backgroundColor.parseCSS("#EEEEEE");
+
+          // add a text object in the center of the display
+          me.game.world.addChild(new me.Text(609, 281, {
+            font: "Arial",
+            size: 160,
+            fillStyle: "#EEEEFF",
+            textBaseline: "middle",
+            textAlign: "center",
+            text: "Hello World !"
+          }));
+
+          // create 2 sprite instances
+          var left_sprite = new me.Sprite(
+            me.game.viewport.width / 2 - 300,
+            me.game.viewport.height / 2, {
+            image: "speedo",
+            anchorPoint: new me.Vector2d(0.5, 0.5)
+          });
 
 
-<div id="lbl_speed">
+          var right_sprite = new me.Sprite(
+            me.game.viewport.width / 2 - 305,
+            me.game.viewport.height / 2 + 65, {
+            image: "needle",
+            anchorPoint: new me.Vector2d(0.5, 1)
+          });
 
-</div>
+          me.game.world.addChild(left_sprite);
+          me.game.world.addChild(right_sprite);
 
-<div id="lbl_rpm">
+          // subscribe to the main game loop event
+          me.event.on(me.event.GAME_UPDATE, () => {
+            right_sprite.rotate(0.05);
+          });
 
-</div>
+
+        });
+
+
+    });
+  </script>
+
+  <div id="lbl_speed">
+
+  </div>
+
+  <div id="lbl_rpm">
+
+  </div>
 
 </body>
 <script>
-const ws = new WebSocket('ws://localhost:9002')
-ws.onopen = () => {
-  console.log('ws opened on browser')
-  ws.send('hello world')
-}
+  const ws = new WebSocket('ws://localhost:9002')
+  ws.onopen = () => {
+    console.log('ws opened on browser')
+    ws.send('hello world')
+  }
 
-ws.onmessage = (message) => {
-  console.log(`message received`, message.data)
+  ws.onmessage = (message) => {
+    console.log(`message received`, message.data)
 
-  let d = JSON.parse(message.data);
-  console.log(d.rpm);
+    let d = JSON.parse(message.data);
+    console.log(d.rpm);
 
 
-  let speed = Math.ceil((d.speedometer_speed * 3600) / 1000);
+    let speed = Math.ceil((d.speedometer_speed * 3600) / 1000);
 
-  let lblrpm = document.getElementById("lbl_rpm");
-  lblrpm.innerHTML = Math.ceil(d.rpm)+" RPM";
+    let lblrpm = document.getElementById("lbl_rpm");
+    lblrpm.innerHTML = Math.ceil(d.rpm) + " RPM";
 
-  let lblspeed = document.getElementById("lbl_speed");
-  lblspeed.innerHTML = speed +" Km/h";
-}
+    let lblspeed = document.getElementById("lbl_speed");
+    lblspeed.innerHTML = speed + " Km/h";
+  }
 </script>
+
 </html>
